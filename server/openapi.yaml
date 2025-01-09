@@ -1,0 +1,592 @@
+openapi: 3.0.0
+info:
+  title: Campaign Deployment API
+  description: API for deploying and managing campaigns on the blockchain.
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:3000
+    description: Local server
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: x-api-key
+
+  schemas:
+    UnauthorizedResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+          example: "Unauthorized: Invalid or missing API key."
+
+    TooManyRequestsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+          example: "Too many requests from this IP, please try again after 15 minutes."
+
+    BadRequestResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+          example: "Invalid or missing header."
+
+    InternalServerErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+          example: "Unknown error occurred."
+        message:
+          type: string
+          example: "Internal Server Error"
+
+    DeployCampaignSuccess:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        contractAddress:
+          type: string
+          format: ethereum-address
+          example: "0xAbC1234567890DefABC1234567890DEFabc12345"
+        message:
+          type: string
+          example: "Contract deployed successfully."
+
+    ChangeStateSuccess:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: "State changed successfully."
+
+    GetDepositedAmountSuccess:
+      type: object
+      properties:
+        contractAddress:
+          type: string
+          format: ethereum-address
+          example: "0xAbC1234567890DefABC1234567890DEFabc12345"
+        userAddress:
+          type: string
+          format: ethereum-address
+          example: "0xDef1234567890AbCDEF1234567890abcdef12345"
+        depositedAmount:
+          type: string
+          example: "1000.0"
+
+    SetAllocationsSuccess:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: "Allocations set successfully."
+        output:
+          type: string
+          example: "Transaction mined in block 1234567"      
+
+    ValidationError:
+      type: object
+      properties:
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              msg:
+                type: string
+              param:
+                type: string
+              location:
+                type: string
+    GetDepositorsSuccess:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        depositors:
+          type: array
+          items:
+            type: string
+            format: ethereum-address
+          example:
+            - "0xUserAddress1"
+            - "0xUserAddress2"
+        amounts:
+          type: array
+          items:
+            type: string
+          example:
+            - "1000.0"
+            - "500.0"
+
+    HasAddressClaimedSuccess:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        userAddress:
+          type: string
+          format: ethereum-address
+          example: "0xDef1234567890AbCDEF1234567890abcdef12345"
+        hasClaimed:
+          type: boolean
+          example: true          
+
+  parameters:
+    ApiKeyHeader:
+      name: x-api-key
+      in: header
+      required: true
+      description: API key for authentication
+      schema:
+        type: string
+
+    CampaignTitleHeader:
+      name: x-campaign-title
+      in: header
+      required: true
+      description: Title of the campaign
+      schema:
+        type: string
+
+    TokenAddressHeader:
+      name: x-token-address
+      in: header
+      required: true
+      description: Ethereum address of the token
+      schema:
+        type: string
+        pattern: "^0x[a-fA-F0-9]{40}$"
+        example: "0xAbC1234567890DefABC1234567890DEFabc12345"
+
+    # OwnerAddressHeader:
+    #   name: x-owner-address
+    #   in: header
+    #   required: true
+    #   description: Ethereum address of the owner
+    #   schema:
+    #     type: string
+    #     pattern: "^0x[a-fA-F0-9]{40}$"
+    #     example: "0xAbC1234567890DefABC1234567890DEFabc12345"
+
+    ContractAddressHeader:
+      name: x-contract-address
+      in: header
+      required: true
+      description: Ethereum address of the contract
+      schema:
+        type: string
+        pattern: "^0x[a-fA-F0-9]{40}$"
+        example: "0xAbC1234567890DefABC1234567890DEFabc12345"
+
+paths:
+  /campaigndeploy:
+    post:
+      summary: Deploy a new campaign
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ApiKeyHeader'
+        - $ref: '#/components/parameters/CampaignTitleHeader'
+        - $ref: '#/components/parameters/TokenAddressHeader'
+       
+      responses:
+        '200':
+          description: Campaign deployed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeployCampaignSuccess'
+        '400':
+          description: Bad Request - Invalid or missing headers
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestResponse'
+        '401':
+          description: Unauthorized - Invalid or missing API key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalServerErrorResponse'
+
+  /changestatetolive:
+    post:
+      summary: Change campaign state to Live
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ApiKeyHeader'
+        - $ref: '#/components/parameters/ContractAddressHeader'
+      responses:
+        '200':
+          description: State changed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChangeStateSuccess'
+        '400':
+          description: Bad Request - Invalid or missing headers
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestResponse'
+        '401':
+          description: Unauthorized - Invalid or missing API key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalServerErrorResponse'
+
+  /changestatetoended:
+    post:
+      summary: Change campaign state to Ended
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ApiKeyHeader'
+        - $ref: '#/components/parameters/ContractAddressHeader'
+      responses:
+        '200':
+          description: State changed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChangeStateSuccess'
+        '400':
+          description: Bad Request - Invalid or missing headers
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestResponse'
+        '401':
+          description: Unauthorized - Invalid or missing API key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalServerErrorResponse'
+
+  /changestatetorescue:
+    post:
+      summary: Change campaign state to Rescue
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ApiKeyHeader'
+        - $ref: '#/components/parameters/ContractAddressHeader'
+      responses:
+        '200':
+          description: State changed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChangeStateSuccess'
+        '400':
+          description: Bad Request - Invalid or missing headers
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestResponse'
+        '401':
+          description: Unauthorized - Invalid or missing API key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalServerErrorResponse'
+
+  /getDepositedAmount:
+    post:
+      summary: Get Deposited Amount for a User in a Contract
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                contractAddress:
+                  type: string
+                  format: ethereum-address
+                  example: "0xAbC1234567890DefABC1234567890DEFabc12345"
+                userAddress:
+                  type: string
+                  format: ethereum-address
+                  example: "0xDef1234567890AbCDEF1234567890abcdef12345"
+              required:
+                - contractAddress
+                - userAddress
+      responses:
+        '200':
+          description: Deposited amount retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetDepositedAmountSuccess'
+        '400':
+          description: Bad Request - Invalid or missing parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+        '401':
+          description: Unauthorized - Invalid or missing API key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalServerErrorResponse'
+
+  /setAllocations:
+    post:
+      summary: Set Allocations for Users
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ApiKeyHeader'
+        - $ref: '#/components/parameters/ContractAddressHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                userAddresses:
+                  type: array
+                  items:
+                    type: string
+                    format: ethereum-address
+                  description: Array of user Ethereum addresses.
+                  example:
+                    - "0xUserAddress1"
+                    - "0xUserAddress2"
+                    - "0xUserAddress3"
+                allocations:
+                  type: array
+                  items:
+                    type: string
+                    description: Allocation amount for each user (in token units).
+                  description: Array of allocation amounts corresponding to each user.
+                  example:
+                    - "100"
+                    - "200"
+                    - "150"
+              required:
+                - userAddresses
+                - allocations
+      responses:
+        '200':
+          description: Allocations set successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SetAllocationsSuccess'
+        '400':
+          description: Bad Request - Invalid or missing parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+        '401':
+          description: Unauthorized - Invalid or missing API key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalServerErrorResponse'
+  /getDepositors:
+    get:
+      summary: Get depositors and their amounts
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ApiKeyHeader'
+        - $ref: '#/components/parameters/ContractAddressHeader'
+      responses:
+        '200':
+          description: Successfully retrieved depositors and amounts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetDepositorsSuccess'
+        '400':
+          description: Bad Request - Invalid or missing headers
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequestResponse'
+        '401':
+          description: Unauthorized - Invalid or missing API key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalServerErrorResponse'
+
+  /hasAddressClaimed:
+    post:
+      summary: Check if a user has claimed tokens
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                contractAddress:
+                  type: string
+                  format: ethereum-address
+                  example: "0xAbC1234567890DefABC1234567890DEFabc12345"
+                userAddress:
+                  type: string
+                  format: ethereum-address
+                  example: "0xDef1234567890AbCDEF1234567890abcdef12345"
+              required:
+                - contractAddress
+                - userAddress
+      responses:
+        '200':
+          description: Successfully checked claim status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HasAddressClaimedSuccess'
+        '400':
+          description: Bad Request - Invalid or missing parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+        '401':
+          description: Unauthorized - Invalid or missing API key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalServerErrorResponse'              
+
+  /tokenDetails:
+    get:
+      summary: Get Token Details
+      description: Retrieve details of a specific token including name, ticker, price, description, and image.
+      parameters:
+        - in: query
+          name: address
+          schema:
+            type: string
+          required: true
+          description: Ethereum contract address of the token.
+        - in: query
+          name: chain
+          schema:
+            type: string
+            default: "0x1"
+          required: false
+          description: Chain ID in hexadecimal (e.g., "0x1" for Ethereum Mainnet).
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: Successful retrieval of token details.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  name:
+                    type: string
+                  ticker:
+                    type: string
+                  price:
+                    type: number
+                  description:
+                    type: string
+                    nullable: true
+                  image:
+                    type: string
+        '400':
+          description: Bad Request - Invalid input parameters.
+        '401':
+          description: Unauthorized - Missing or invalid API key.
+        '404':
+          description: Not Found - Token metadata not found.
+        '500':
+          description: Internal Server Error.              
+  
