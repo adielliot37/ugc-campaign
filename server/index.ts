@@ -70,6 +70,53 @@ if (!providerUrl) {
 
 const provider = new ethers.providers.JsonRpcProvider(providerUrl);
 
+// Minimal ERC20 ABI to fetch decimals
+const ERC20_ABI = [
+  {
+    "constant": true,
+    "inputs": [],
+    "name": "decimals",
+    "outputs": [
+      {
+        "internalType": "uint8",
+        "name": "",
+        "type": "uint8"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  }
+];
+
+const getTokenDecimals = async (campaignAddress: string): Promise<number> => {
+  try {
+    // Load the minimal Campaign ABI from abi.json
+    const CAMPAIGN_ABI = JSON.parse(fs.readFileSync(path.join(__dirname, 'abi.json'), 'utf8'));
+
+    // Initialize the Campaign contract
+    const campaignContract = new ethers.Contract(campaignAddress, CAMPAIGN_ABI, provider);
+    
+    // Fetch the token address from the Campaign contract
+    const tokenAddr: string = await campaignContract.tokenAddress();
+    
+    // Validate the token address
+    if (!ethers.utils.isAddress(tokenAddr)) {
+      throw new Error('Invalid token address fetched from Campaign contract.');
+    }
+    
+    // Initialize the Token contract using the minimal ERC20 ABI
+    const tokenContract = new ethers.Contract(tokenAddr, ERC20_ABI, provider);
+    
+    // Fetch decimals
+    const decimals: number = await tokenContract.decimals();
+    
+    return decimals;
+  } catch (error) {
+    console.error('Error fetching token decimals:', error);
+    throw error;
+  }
+};
+
 // **Moralis Initialization**
 const MORALIS_API_KEY = process.env.MORALIS_API_KEY;
 if (!MORALIS_API_KEY) {
@@ -297,6 +344,11 @@ const getDepositedAmount = async (req: Request, res: Response): Promise<void> =>
   const { contractAddress, userAddress } = req.body;
 
   try {
+    // Fetch token decimals dynamically
+    const decimals = await getTokenDecimals(contractAddress);
+    console.log(`Token decimals: ${decimals}`);
+
+    // Initialize the Campaign contract
     const abiPath = path.join(__dirname, 'abi.json');
     let abi;
     try {
@@ -309,10 +361,11 @@ const getDepositedAmount = async (req: Request, res: Response): Promise<void> =>
 
     const contract = new ethers.Contract(contractAddress, abi, provider);
 
+    // Fetch deposited amount
     const depositedAmount = await contract.getDepositedAmount(userAddress);
 
-    const formattedAmount = ethers.utils.formatUnits(depositedAmount, 18);
-
+    // Format the amount using the fetched decimals
+    const formattedAmount = ethers.utils.formatUnits(depositedAmount, decimals);
 
     res.status(200).json({
       success: true,
@@ -334,6 +387,7 @@ const getDepositedAmount = async (req: Request, res: Response): Promise<void> =>
     res.status(500).json({ success: false, error: 'Internal server error.' });
   }
 };
+
 
 // **New Route: /setAllocations**
 const validateSetAllocationsHeaders = [
@@ -440,16 +494,22 @@ const getDepositorsHandler = async (req: Request, res: Response): Promise<void> 
   const contractAddress = req.headers['x-contract-address'] as string;
 
   try {
+    // Fetch token decimals dynamically
+    const decimals = await getTokenDecimals(contractAddress);
+    console.log(`Token decimals: ${decimals}`);
+
+    // Initialize the Campaign contract
     const abiPath = path.join(__dirname, 'abi.json');
     const abi = JSON.parse(fs.readFileSync(abiPath, 'utf8'));
 
     const contract = new ethers.Contract(contractAddress, abi, provider);
 
+    // Fetch depositors and their amounts
     const [addresses, rawAmounts] = await contract.getDepositors();
 
-    // Convert BigNumber amounts to human-readable format
+    // Convert BigNumber amounts to human-readable format using actual decimals
     const amounts = rawAmounts.map((amount: ethers.BigNumber) =>
-      ethers.utils.formatUnits(amount, 18) // Adjust decimals if the token has a different decimal setup
+      ethers.utils.formatUnits(amount, decimals) // Use fetched decimals
     );
 
     res.status(200).json({
@@ -465,6 +525,7 @@ const getDepositorsHandler = async (req: Request, res: Response): Promise<void> 
     });
   }
 };
+
 
 
 const hasAddressClaimedHandler = async (req: Request, res: Response): Promise<void> => {
