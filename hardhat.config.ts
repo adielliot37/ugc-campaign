@@ -33,13 +33,13 @@ const config: HardhatUserConfig = {
     base: {
       url: "https://base-rpc.publicnode.com",
       accounts: [`0x${DEPLOYER_PRIVATE_KEY}`],
-      chainId: 8453, // Base Mainnet Chain ID
+      chainId: 8453, 
     },
 
     baseSepolia: {
         url: "https://base-sepolia-rpc.publicnode.com",
         accounts: [`0x${DEPLOYER_PRIVATE_KEY}`],
-        chainId: 84532, // Base Mainnet Chain ID
+        chainId: 84532, 
       },
     
   },
